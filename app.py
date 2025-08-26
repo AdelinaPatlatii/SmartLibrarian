@@ -1,5 +1,3 @@
-import os
-from openai import OpenAI
 from dotenv import load_dotenv
 from db import load_books_into_chroma
 from rag import retrieval_candidates
