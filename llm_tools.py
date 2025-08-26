@@ -1,11 +1,3 @@
-"""
-Tools for SmartLibrarian.
-
-This file defines helper functions that can be exposed to the LLM via
-function calling. The primary tool is get_summary_by_title, which returns
-the full summary of a book given its exact title.
-"""
-
 from typing import Dict
 
 # Local dictionary of book summaries.
@@ -58,17 +50,7 @@ book_summaries_dict: Dict[str, str] = {
 
 def get_summary_by_title(title: str) -> str:
     """
-    Look up and return the full summary for an exact book title.
-
-    Parameters
-    ----------
-    title : str
-        The exact book title to search for (e.g., "The Hobbit").
-
-    Returns
-    -------
-    str
-        The book's summary if found, otherwise a friendly error message.
+    Look up and return the full summary for an EXACT book title.
     """
     summary = book_summaries_dict.get(title)
 

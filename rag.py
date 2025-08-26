@@ -1,37 +1,9 @@
-"""
-RAG (Retrieval-Augmented Generation) helpers for SmartLibrarian.
-
-This module exposes a single helper: `retrieval_candidates`, which runs a
-semantic search in a Chroma collection and returns a compact list of
-candidate books to be fed into the LLM prompt.
-
-Design goals:
-- Minimal and framework-agnostic (pure Python + Chroma).
-- Well-documented, safe handling of missing fields.
-- Stable output schema for easy downstream use in LLM prompts.
-"""
-
 from typing import List, Dict, Any
 
 
 def _make_snippet(text: str, max_len: int = 220) -> str:
     """
     Build a compact one-line snippet from a longer document string.
-
-    - Collapses newlines into spaces.
-    - Truncates at `max_len` and appends "..." if needed.
-
-    Parameters
-    ----------
-    text : str
-        Source document text (e.g., title + summary stored in Chroma).
-    max_len : int
-        Maximum snippet length in characters.
-
-    Returns
-    -------
-    str
-        A short, single-line preview of the document content.
     """
     if not text:
         return ""
@@ -75,13 +47,6 @@ def retrieval_candidates(
           },
           ...
         ]
-
-    Notes
-    -----
-    - `include=["documents","metadatas","ids","distances"]` ensures we get all fields
-      needed to build a compact candidate list.
-    - If `metadatas` are not present or don't contain "title", the function falls back
-      to the document ID as the title.
     """
     res = coll.query(
         query_texts=[query_text],
@@ -89,7 +54,6 @@ def retrieval_candidates(
         include=["documents", "metadatas", "distances"],
     )
 
-    # Chroma returns lists-of-lists: pick the first batch (index 0).
     ids = (res.get("ids") or [[]])[0]
     docs = (res.get("documents") or [[]])[0]
     metas = (res.get("metadatas") or [[]])[0]
