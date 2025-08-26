@@ -2,6 +2,21 @@ import base64
 from pathlib import Path
 from typing import Optional
 from openai import OpenAI
+import threading
+
+_IMG_SIZE = "1024x1024"
+
+def spawn_image_job(title: str, summary: str, filename: str) -> None:
+    """fire-and-forget image generation to avoid blocking the text output."""
+    def _job():
+        try:
+            print(f"[DEBUG] Starting image gen: {title} -> {filename}.png")
+            img_prompt = prompt_from_book(title, summary)
+            path = generate_image_to_file(img_prompt, out_path=f"{filename}.png", size=_IMG_SIZE)
+            print(f"[DEBUG] Finished image gen: {path}")
+        except Exception as e:
+            print(f"[ERROR] Image generation failed: {e}")
+    threading.Thread(target=_job, daemon=True).start()
 
 
 def prompt_from_book(title: str, summary: str, style_hint: Optional[str] = None) -> str:

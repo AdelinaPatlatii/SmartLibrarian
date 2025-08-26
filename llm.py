@@ -1,10 +1,7 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple, Optional
 from openai import OpenAI
-from image_generation import prompt_from_book, generate_image_to_file
 from llm_tools import get_summary_by_title
-import threading
 
-_IMG_SIZE = "1024x1024"
 
 def _build_messages(user_query: str, candidates: List[Dict[str, str]]) -> list:
     """
@@ -35,23 +32,7 @@ def _build_messages(user_query: str, candidates: List[Dict[str, str]]) -> list:
     ]
 
 
-def _spawn_image_job(title: str, summary: str) -> None:
-    """Fire-and-forget image generation to avoid blocking the text output."""
-    def _job():
-        try:
-            img_prompt = prompt_from_book(title, summary)
-            safe_name = title.replace(" ", "_").replace("/", "_").lower()
-            # Pass a smaller/fixed size to speed things up
-            generate_image_to_file(img_prompt, out_path=f"{safe_name}.png", size=_IMG_SIZE)
-        except Exception:
-            # Keep silent in CLI to avoid noise; optionally log here.
-            pass
-
-    t = threading.Thread(target=_job, daemon=True)
-    t.start()
-
-
-def make_llm_recommendation(user_query: str, candidates: List[Dict[str, str]]) -> str:
+def make_llm_recommendation(user_query: str, candidates: List[Dict[str, str]]) -> Tuple[str, Optional[str], Optional[str]]:
     """
     Generate a recommendation in Romanian, then append the full summary
     """
@@ -78,17 +59,8 @@ def make_llm_recommendation(user_query: str, candidates: List[Dict[str, str]]) -
     if not chosen_title and candidates:
         chosen_title = candidates[0]["title"]
 
+    summary = None
     if chosen_title:
         summary = get_summary_by_title(chosen_title)
 
-        # kick off image generation WITHOUT blocking the text response
-        _spawn_image_job(chosen_title, summary)
-
-        # final text response
-        return (
-            f"{recommendation}\n\n"
-            f"Rezumat complet pentru „{chosen_title}”:\n{summary}\n\n"
-            f"(Imaginea se generează în fundal.)"
-        )
-    else:
-        return recommendation
+    return recommendation, chosen_title, summary
