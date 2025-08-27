@@ -1,4 +1,5 @@
 from dotenv import load_dotenv
+from audio_io import tts_save_to_file, transcribe_file
 from db import load_books_into_chroma
 from moderation import moderate_or_pass
 from rag import retrieval_candidates
@@ -18,6 +19,20 @@ def main():
         if user_q.lower() in {"exit", "quit"}:
             break
 
+        # speech-to-text transcription part
+        if user_q == ":stt":
+            path = input("Audio file path to transcribe: ").strip()
+            if not path:
+                print("Assistant: No file provided.\n")
+                continue
+            try:
+                user_q = transcribe_file(path, language="ro")
+                print(f"[Transcribed] {user_q}\n")
+            except Exception as e:
+                print(f"Assistant: Could not transcribe audio ({e}).\n")
+                continue
+
+        # prompt moderation part
         warning = moderate_or_pass(user_q)
         if warning:
             print(f"Assistant: {warning}\n")
@@ -25,19 +40,33 @@ def main():
 
         candidates = retrieval_candidates(coll, user_q, k=5)
         recommendation, chosen_title, summary = make_llm_recommendation(user_q, candidates)
+
+        # text answer generation part
         answer = recommendation
         if chosen_title and summary:
             answer += f"\n\nRezumat complet pentru {chosen_title}:\n{summary}"
 
         print(f"Assistant: {answer}\n")
 
+        # text-to-speech part
+        choice_tts = input("Generate audio for this answer? [y/n]: ").strip().lower()
+        if choice_tts == "y":
+            try:
+                out_path = tts_save_to_file(answer, out_path="answer.mp3", voice="alloy")
+                print(f"Assistant: Audio saved to {out_path}\n")
+            except Exception as e:
+                print(f"Assistant: Could not synthesize audio ({e}).\n")
+        elif choice_tts == "n":
+            continue
+
+        # image generation part
         if chosen_title:
-            choice = input("Generate an image for this recommendation? [y/n]: ").strip().lower()
-            if choice == "y":
+            choice_image_gen = input("Generate an image for this recommendation? [y/n]: ").strip().lower()
+            if choice_image_gen == "y":
                 safe_name = chosen_title.replace(" ", "_").replace("/", "_").lower() # remove annoying characters from file name
                 print(f"Generating image {safe_name}.png...\n")
                 spawn_image_job(chosen_title, summary, safe_name)
-            elif choice == "n":
+            elif choice_image_gen == "n":
                 continue
 
 
