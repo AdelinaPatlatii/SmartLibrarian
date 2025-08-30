@@ -52,12 +52,11 @@ def main():
         choice_tts = input("Generate audio for this answer? [y/n]: ").strip().lower()
         if choice_tts == "y":
             try:
-                out_path = tts_save_to_file(answer, out_path="answer.mp3", voice="alloy")
+                book_title = chosen_title or "default.mp3"
+                out_path = tts_save_to_file(answer, book_title)
                 print(f"Assistant: Audio saved to {out_path}\n")
             except Exception as e:
                 print(f"Assistant: Could not synthesize audio ({e}).\n")
-        elif choice_tts == "n":
-            continue
 
         # image generation part
         if chosen_title:
@@ -66,8 +65,6 @@ def main():
                 safe_name = chosen_title.replace(" ", "_").replace("/", "_").lower() # remove annoying characters from file name
                 print(f"Generating image {safe_name}.png...\n")
                 spawn_image_job(chosen_title, summary, safe_name)
-            elif choice_image_gen == "n":
-                continue
 
 
 if __name__ == "__main__":

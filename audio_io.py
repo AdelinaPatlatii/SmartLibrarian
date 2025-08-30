@@ -22,24 +22,25 @@ def transcribe_file(audio_path: str, model: str = "whisper-1", language: Optiona
 
 def tts_save_to_file(
     text: str,
-    out_path: str = "answer.mp3",
+    book_title: str,
     voice: str = "alloy",
     audio_format: str = "mp3",
     model: str = "gpt-4o-mini-tts",
 ) -> str:
     """
-    Convert text to speech and save to an audio file.
+    Convert text to speech and save to an audio file using streaming.
     """
-    out = Path(out_path).with_suffix(f".{audio_format}")
+    client = OpenAI()
+    safe_name = book_title.replace(" ", "_").replace("/", "_").lower()
+    out = Path(f"{safe_name}_recommendation.{audio_format}")
 
-    _client = OpenAI()
-    resp = _client.audio.speech.create(
+    with client.audio.speech.with_streaming_response.create(
         model=model,
         voice=voice,
         input=text,
-        format=audio_format,
-    )
+        response_format=audio_format,
+    ) as response:
+        response.stream_to_file(str(out))
 
-    with out.open("wb") as f:
-        f.write(resp.read())
     return str(out.resolve())
+

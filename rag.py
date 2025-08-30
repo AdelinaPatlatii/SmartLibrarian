@@ -20,19 +20,15 @@ def retrieval_candidates(
     """
     Run a semantic query against a Chroma collection and return top-K candidates.
 
-    This function expects the collection to have an embedding function attached
-    (e.g., OpenAI embeddings) so that `query_texts` triggers vector search.
-
     Parameters
-    ----------
     coll :
-        A Chroma collection instance (e.g., returned by `get_or_create_collection`).
+        A Chroma collection instance
     query_text : str
-        The user query in Romanian (free-form). Example: "Vreau o carte despre prietenie și magie".
+        The user query in Romanian
     k : int
-        Number of results to return (top-K).
+        Number of results to return (top-K)
     snippet_len : int
-        Maximum length of the text snippet for each candidate.
+        Maximum length of the text snippet for each candidate
 
     Returns
     -------
@@ -40,7 +36,7 @@ def retrieval_candidates(
         A list of candidate dictionaries with a stable schema:
         [
           {
-            "title": str,      # book title (from metadatas["title"] or from id)
+            "title": str,      # book title
             "snippet": str,    # short preview from the stored document
             "distance": float, # vector distance (smaller = closer match)
             "id": str          # the raw Chroma ID
