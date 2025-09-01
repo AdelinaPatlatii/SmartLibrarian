@@ -3,21 +3,21 @@ import React, { useMemo, useState } from "react";
 /**
  * SmartLibrarian React App
  *
- * This component is a minimal UI that talks to your Python backend.
- * It supports:
- *  - Sending a question to /api/chat → shows LLM answer (+ optional chosen_title/summary)
- *  - Generating an image via /api/image
- *  - Generating audio via /api/tts
- *  - Speech-to-Text via /api/stt (audio file upload)
+ * Minimal UI that talks to the Python backend.
+ * Features:
+ *  - Send a question to /api/chat → shows LLM answer (+ optional chosen_title/summary)
+ *  - Generate an image via /api/image
+ *  - Generate audio via /api/tts
+ *  - Speech-to-Text via /api/stt (MIC RECORDING ONLY)
  *
- * The base URL is configured via Vite env:
+ * Configure base URL via Vite env:
  *  VITE_API_BASE_URL=https://your-api-host
- *  (defaults to http://localhost:8000 for local dev)
+ *  (defaults to http://localhost:2050 for local dev)
  */
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:2050";
 
-/** Shapes of the backend responses (TypeScript typing) */
+/** Backend response shapes */
 type ChatResponse = {
   answer: string;
   chosen_title?: string;
@@ -28,7 +28,7 @@ type ImageResponse = { image_url: string };
 type TTSResponse = { audio_url: string };
 type STTResponse = { text: string };
 
-/** Small helper: POST JSON to a backend endpoint and parse the result */
+/** Helpers */
 async function postJSON<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
@@ -39,17 +39,13 @@ async function postJSON<T>(path: string, body: unknown): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** Small helper: POST multipart/form-data (for audio files) */
 async function postForm<T>(path: string, form: FormData): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, { method: "POST", body: form });
   if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
   return res.json() as Promise<T>;
 }
 
-/**
- * App component:
- * Holds all local UI state and wires up handlers to call the backend.
- */
+/** App */
 export default function App() {
   // ------- Core chat state -------
   const [userQ, setUserQ] = useState("");                     // user input text
@@ -68,14 +64,15 @@ export default function App() {
   const [loadingSTT, setLoadingSTT] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ------- STT recording state (MIC ONLY) -------
+  const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
+  const [recording, setRecording] = useState(false);
+
   // Derived flags to enable/disable action buttons
   const canGenImage = useMemo(() => !!chosenTitle && !!summary, [chosenTitle, summary]);
   const canTTS = useMemo(() => answer.trim().length > 0, [answer]);
 
-  /**
-   * Handler: send the user's question to /api/chat.
-   * Resets media state and populates answer/title/summary from backend.
-   */
+  /** Send user's question to /api/chat */
   async function onSend() {
     if (!userQ.trim()) return;
     setError(null);
@@ -98,10 +95,7 @@ export default function App() {
     }
   }
 
-  /**
-   * Handler: ask backend to generate an image for the chosen title.
-   * Requires both chosenTitle and summary (to build a rich prompt server-side).
-   */
+  /** Generate image for chosen title */
   async function onGenerateImage() {
     if (!canGenImage || !chosenTitle || !summary) return;
     setLoadingImage(true);
@@ -120,9 +114,7 @@ export default function App() {
     }
   }
 
-  /**
-   * Handler: ask backend to synthesize TTS audio of the assistant's answer text.
-   */
+  /** TTS for assistant answer */
   async function onTTS() {
     if (!canTTS) return;
     setLoadingTTS(true);
@@ -139,22 +131,80 @@ export default function App() {
   }
 
   /**
-   * Handler: upload an audio file for STT transcription.
-   * On success, it populates the query box with the transcribed text.
+   * STT via microphone recording using MediaRecorder.
+   * After transcription, we ALWAYS place the text in the input
+   * and WAIT for the user to press "Ask" (no auto-send).
    */
-  async function onSTTFile(file: File, language?: string) {
-    setLoadingSTT(true);
+  async function startRecording() {
     setError(null);
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Microphone access not supported in this browser.");
+      return;
+    }
+
+    // Pick the best supported mime type
+    const preferredTypes = [
+      "audio/webm;codecs=opus",
+      "audio/webm",
+      "audio/mp4", // Safari
+      "audio/ogg",
+    ];
+    let mimeType = "";
+    for (const t of preferredTypes) {
+      if ((window as any).MediaRecorder && MediaRecorder.isTypeSupported(t)) {
+        mimeType = t;
+        break;
+      }
+    }
+
     try {
-      const form = new FormData();
-      form.append("file", file);
-      if (language) form.append("language", language);
-      const res = await postForm<STTResponse>("/api/stt", form);
-      setUserQ(res.text || "");
-    } catch (e: any) {
-      setError(e.message || "STT failed");
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mr = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      const chunks: BlobPart[] = [];
+
+      mr.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      mr.onstop = async () => {
+        const blob = new Blob(chunks, { type: mimeType || "audio/webm" });
+
+        // Choose an extension your server/Whisper will accept
+        const mt = mimeType || "";
+        const ext = mt.includes("mp4") ? "m4a" : mt.includes("ogg") ? "ogg" : "webm";
+
+        setLoadingSTT(true);
+        try {
+          const form = new FormData();
+          form.append("file", blob, `recording.${ext}`);
+          form.append("language", "ro"); // adjust or remove if not needed
+          const res = await postForm<STTResponse>("/api/stt", form);
+
+          const text = (res.text || "").trim();
+          setUserQ(text);
+          // IMPORTANT: Do NOT auto-send. User reviews/edits, then presses "Ask".
+        } catch (e: any) {
+          setError(e.message || "STT failed");
+        } finally {
+          setLoadingSTT(false);
+        }
+
+        // release mic tracks
+        stream.getTracks().forEach((t) => t.stop());
+        setRecorder(null);
+      };
+
+      mr.start();
+      setRecorder(mr);
+      setRecording(true);
+    } catch (err: any) {
+      setError(err?.message || "Could not access microphone.");
+    }
+  }
+
+  function stopRecording() {
+    try {
+      recorder?.stop();
     } finally {
-      setLoadingSTT(false);
+      setRecording(false);
     }
   }
 
@@ -179,7 +229,7 @@ export default function App() {
             value={userQ}
             onChange={(e) => setUserQ(e.target.value)}
           />
-          <div className="row">
+          <div className="row" style={{ alignItems: "center", gap: ".5rem", flexWrap: "wrap" }}>
             <button
               onClick={onSend}
               disabled={loadingChat}
@@ -188,18 +238,16 @@ export default function App() {
               {loadingChat ? "Thinking…" : "Ask"}
             </button>
 
-            {/* STT upload */}
-            <label className="ml-auto subtle">STT (upload audio):</label>
-            <input
-              type="file"
-              accept="audio/*"
+            {/* STT mic controls only */}
+            <span className="ml-auto subtle">STT (mic):</span>
+            <button
+              type="button"
               disabled={loadingSTT}
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) onSTTFile(f, "ro");
-              }}
-              className="text-sm"
-            />
+              onClick={() => (recording ? stopRecording() : startRecording())}
+              className="btn btn-outline"
+            >
+              {recording ? "⏹️ Stop" : "🎙️ Record"}
+            </button>
             {loadingSTT && <span className="subtle">Transcribing…</span>}
           </div>
         </section>
