@@ -1,15 +1,12 @@
 from __future__ import annotations
-
 import os
 from pathlib import Path
 from typing import Optional
 from dotenv import load_dotenv
-
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-
 from db import load_books_into_chroma
 from rag import retrieval_candidates
 from llm import make_llm_recommendation
@@ -37,7 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# frontend and generated media goes into a static/ directory:
+# generated media goes into a static/ directory:
 STATIC_ROOT = Path("static")
 STATIC_ROOT.mkdir(parents=True, exist_ok=True)
 

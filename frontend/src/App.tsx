@@ -1,23 +1,7 @@
 import React, { useMemo, useState } from "react";
 
-/**
- * SmartLibrarian React App
- *
- * Minimal UI that talks to the Python backend.
- * Features:
- *  - Send a question to /api/chat → shows LLM answer (+ optional chosen_title/summary)
- *  - Generate an image via /api/image
- *  - Generate audio via /api/tts
- *  - Speech-to-Text via /api/stt (MIC RECORDING ONLY)
- *
- * Configure base URL via Vite env:
- *  VITE_API_BASE_URL=https://your-api-host
- *  (defaults to http://localhost:2050 for local dev)
- */
-
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:2050";
 
-/** Backend response shapes */
 type ChatResponse = {
   answer: string;
   chosen_title?: string;
@@ -28,7 +12,6 @@ type ImageResponse = { image_url: string };
 type TTSResponse = { audio_url: string };
 type STTResponse = { text: string };
 
-/** Helpers */
 async function postJSON<T>(path: string, body: unknown): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method: "POST",
@@ -45,34 +28,33 @@ async function postForm<T>(path: string, form: FormData): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-/** App */
 export default function App() {
-  // ------- Core chat state -------
+  // core chat state
   const [userQ, setUserQ] = useState("");                     // user input text
   const [answer, setAnswer] = useState("");                   // assistant's answer text
   const [chosenTitle, setChosenTitle] = useState<string>();   // which book was selected
   const [summary, setSummary] = useState<string>();           // summary text for chosen book
 
-  // ------- Media URLs (returned by backend) -------
+  // media URLs
   const [imageUrl, setImageUrl] = useState<string>();         // generated image URL
   const [audioUrl, setAudioUrl] = useState<string>();         // generated audio URL
 
-  // ------- Loading flags + error -------
+  // loading flags + errors
   const [loadingChat, setLoadingChat] = useState(false);
   const [loadingImage, setLoadingImage] = useState(false);
   const [loadingTTS, setLoadingTTS] = useState(false);
   const [loadingSTT, setLoadingSTT] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ------- STT recording state (MIC ONLY) -------
+  // STT recording state
   const [recorder, setRecorder] = useState<MediaRecorder | null>(null);
   const [recording, setRecording] = useState(false);
 
-  // Derived flags to enable/disable action buttons
+  // derived flags to enable/disable action buttons
   const canGenImage = useMemo(() => !!chosenTitle && !!summary, [chosenTitle, summary]);
   const canTTS = useMemo(() => answer.trim().length > 0, [answer]);
 
-  /** Send user's question to /api/chat */
+  /** send user's question to /api/chat */
   async function onSend() {
     if (!userQ.trim()) return;
     setError(null);
@@ -95,7 +77,7 @@ export default function App() {
     }
   }
 
-  /** Generate image for chosen title */
+  /** generate image for chosen title */
   async function onGenerateImage() {
     if (!canGenImage || !chosenTitle || !summary) return;
     setLoadingImage(true);
@@ -130,11 +112,7 @@ export default function App() {
     }
   }
 
-  /**
-   * STT via microphone recording using MediaRecorder.
-   * After transcription, we ALWAYS place the text in the input
-   * and WAIT for the user to press "Ask" (no auto-send).
-   */
+   /** STT via microphone recording using MediaRecorder. */
   async function startRecording() {
     setError(null);
 
@@ -143,11 +121,10 @@ export default function App() {
       return;
     }
 
-    // Pick the best supported mime type
     const preferredTypes = [
       "audio/webm;codecs=opus",
       "audio/webm",
-      "audio/mp4", // Safari
+      "audio/mp4",
       "audio/ogg",
     ];
     let mimeType = "";
@@ -167,7 +144,6 @@ export default function App() {
       mr.onstop = async () => {
         const blob = new Blob(chunks, { type: mimeType || "audio/webm" });
 
-        // Choose an extension your server/Whisper will accept
         const mt = mimeType || "";
         const ext = mt.includes("mp4") ? "m4a" : mt.includes("ogg") ? "ogg" : "webm";
 
@@ -175,19 +151,17 @@ export default function App() {
         try {
           const form = new FormData();
           form.append("file", blob, `recording.${ext}`);
-          form.append("language", "ro"); // adjust or remove if not needed
+          form.append("language", "ro");
           const res = await postForm<STTResponse>("/api/stt", form);
 
           const text = (res.text || "").trim();
           setUserQ(text);
-          // IMPORTANT: Do NOT auto-send. User reviews/edits, then presses "Ask".
         } catch (e: any) {
           setError(e.message || "STT failed");
         } finally {
           setLoadingSTT(false);
         }
 
-        // release mic tracks
         stream.getTracks().forEach((t) => t.stop());
         setRecorder(null);
       };
@@ -208,24 +182,24 @@ export default function App() {
     }
   }
 
-  // ----------------- Render -----------------
+  // the rendering part
   return (
     <div className="min-h-screen">
       <header className="container header">
-        <h1 className="h1">📚 SmartLibrarian</h1>
+        <h1 className="h1">Smart Librarian</h1>
         <p className="subtle">
-          RAG + LLM book recommendations • optional image generation • speech I/O
+          RAG + LLM book recommendations • image generation • speech I/O
         </p>
       </header>
 
       <main className="container" style={{ paddingBottom: "6rem" }}>
         {/* Query box */}
         <section className="panel">
-          <label className="block text-sm font-medium mb-2">Your question</label>
+          <label className="block text-sm font-medium mb-2">Întreabă-mă ceva:</label>
           <textarea
             className="textarea"
             rows={3}
-            placeholder='Ex: „Vreau o carte despre prietenie și magie”'
+            placeholder='Ex: „Vreau o carte despre prietenie.”'
             value={userQ}
             onChange={(e) => setUserQ(e.target.value)}
           />
@@ -238,15 +212,14 @@ export default function App() {
               {loadingChat ? "Thinking…" : "Ask"}
             </button>
 
-            {/* STT mic controls only */}
-            <span className="ml-auto subtle">STT (mic):</span>
+            {/* STT mic controls */}
             <button
               type="button"
               disabled={loadingSTT}
               onClick={() => (recording ? stopRecording() : startRecording())}
               className="btn btn-outline"
             >
-              {recording ? "⏹️ Stop" : "🎙️ Record"}
+              {recording ? "⏹️ Stop" : "🎙️ Record input prompt"}
             </button>
             {loadingSTT && <span className="subtle">Transcribing…</span>}
           </div>
@@ -263,7 +236,12 @@ export default function App() {
         {answer && (
           <section className="mt-6 panel">
             <div className="card-title">Assistant</div>
-            <div className="answer">{answer}</div>
+
+            {/* Answer + summary */}
+            <div className="answer">
+              {answer}
+              {summary ? `\n\nSumar:\n${summary}` : ""}
+            </div>
 
             {/* Actions */}
             <div className="mt-4 row" style={{ flexWrap: "wrap" }}>
