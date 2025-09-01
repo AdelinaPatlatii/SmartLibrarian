@@ -96,17 +96,18 @@ def tts(payload: dict):
         return JSONResponse({"error": "text is required"}, status_code=400)
 
     if book_title:
-        audio_path_str = tts_save_to_file(text=text, book_title=book_title)
-        audio_path = Path(audio_path_str)
-        if audio_path.parent.resolve() != STATIC_ROOT.resolve():
-            target = STATIC_ROOT / audio_path.name
-            target.write_bytes(audio_path.read_bytes())
-            audio_path = target
+        base = Path(_safe_name(book_title)).stem
+        final_name = f"{base}.mp3"
     else:
-        audio_path = STATIC_ROOT / "default.mp3"
-        tts_save_to_file(text=text, book_title="default.mp3")
+        final_name = "default.mp3"
 
-    return {"audio_url": f"/{audio_path.name}"}
+    target = STATIC_ROOT / final_name
+    tmp_path_str = tts_save_to_file(text=text, book_title=final_name)
+    tmp_path = Path(tmp_path_str)
+    if tmp_path.resolve() != target.resolve():
+        target.write_bytes(tmp_path.read_bytes())
+
+    return {"audio_url": f"/{target.name}"}
 
 
 @app.post("/api/stt")

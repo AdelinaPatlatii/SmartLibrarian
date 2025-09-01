@@ -112,7 +112,7 @@ export default function App() {
         title: chosenTitle,
         summary,
       });
-      setImageUrl(res.image_url);
+      setImageUrl(`${BASE_URL}${res.image_url}`);
     } catch (e: any) {
       setError(e.message || "Image generation failed");
     } finally {
@@ -130,7 +130,7 @@ export default function App() {
     setAudioUrl(undefined);
     try {
       const res = await postJSON<TTSResponse>("/api/tts", { text: answer });
-      setAudioUrl(res.audio_url);
+      setAudioUrl(`${BASE_URL}${res.audio_url}`);
     } catch (e: any) {
       setError(e.message || "TTS failed");
     } finally {
