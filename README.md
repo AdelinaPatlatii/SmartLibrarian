@@ -67,14 +67,14 @@ FastAPI mounts static/ at /, so URLs like /micul_print.png or /micul_print.mp3 a
    OPENAI_API_KEY=<your-openai-api-key-goes-here>
    VITE_API_BASE_URL=http://localhost:2050
 
-4. **Install the required dependencies and run FastAPI:**
+3. **Install the required dependencies and run FastAPI:**
    ```bash
    pip install -r requirements.txt
    uvicorn server:app --host 0.0.0.0 --port 2050 --reload
 
 The API will be at: http://localhost:2050
 
-5. **Run the frontend:**
+4. **Run the frontend:**
    ```bash
    cd frontend
    npm install
@@ -82,7 +82,7 @@ The API will be at: http://localhost:2050
 
 The UI will be at: http://localhost:5173
 
-6. **Visit the app in your browser:**
+5. **Visit the app in your browser:**
 
    http://localhost:5173
 
@@ -150,3 +150,4 @@ Under **Port Forwarding**, configure the local ports for the two containers (sma
 Hint: Make sure that the `Include Kubernetes services` option at the top of the window is selected.
 
 Then, access the app at: http://localhost:2060
+
