@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartlibrarian-backend
+spec:
+  selector:
+    app: smartlibrarian-backend
+  ports:
+    - port: 2050
+      targetPort: 2050
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: smartlibrarian-frontend
+spec:
+  selector:
+    app: smartlibrarian-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+  type: ClusterIP

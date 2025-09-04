@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:2050";
 

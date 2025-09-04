@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Virtual environments
+.venv/
+env/
+venv/
+
+# Environment & config
+.env
+.env.*
+*.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Git
+.git
+.gitignore
+
+# Data (don’t bake local ChromaDB into the image)
+data/

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartlibrarian-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smartlibrarian-backend
+  template:
+    metadata:
+      labels:
+        app: smartlibrarian-backend
+    spec:
+      containers:
+        - name: backend
+          image: smartlibrarian-backend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 2050
+          env:
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openai-secret
+                  key: OPENAI_API_KEY
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: smartlibrarian-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: smartlibrarian-frontend
+  template:
+    metadata:
+      labels:
+        app: smartlibrarian-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: smartlibrarian-frontend:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 80
