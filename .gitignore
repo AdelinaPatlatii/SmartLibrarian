@@ -211,3 +211,4 @@ chroma_db/
 
 *.png
 *.mp3
+OPENAI_API_KEY.txt

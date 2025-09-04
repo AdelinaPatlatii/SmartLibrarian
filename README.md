@@ -85,3 +85,68 @@ The UI will be at: http://localhost:5173
 6. **Visit the app in your browser:**
 
    http://localhost:5173
+
+## New: App Containerization!
+
+SmartLibrarian can also be run in Docker containers and deployed to Kubernetes.
+
+**Backend (FastAPI)**
+
+Build and run locally:
+   ```bash
+    docker build -t smartlibrarian-backend:latest .
+    docker run -p 2050:2050 --name smartlibrarian-backend --env-file .\.env smartlibrarian-backend:latest
+   ```
+**Frontend (React + nginx)**
+
+Build and run locally (from the `frontend/` folder):
+   ```bash
+    docker build -t smartlibrarian-frontend:latest .
+    docker run -p 2060:80 --name smartlibrarian-frontend smartlibrarian-frontend:latest
+   ```
+
+Visit the app at http://localhost:2060, which will call the backend at http://localhost:2050.
+
+## Kubernetes deployment
+
+Create the secret for your API key:
+   ```bash
+    echo|set /p="<your-openai-api-key-goes-here>" > OPENAI_API_KEY.txt
+    kubectl create secret generic openai-secret --from-file=OPENAI_API_KEY=OPENAI_API_KEY.txt
+   ```
+
+Apply the manifests:
+   ```bash
+    kubectl apply -f manifests/
+   ```
+
+**If you need to change the OpenAI API key:**
+
+After updating the `OPENAI_API_KEY.txt` file, run the following commands:
+   ```bash
+    # delete the old secret:
+    kubectl delete secret openai-secret
+    # restart to load the new secret: 
+    kubectl rollout restart deploy/smartlibrarian-backend
+    # reapply the manifest/ folder:
+    kubectl apply -f manifests/
+   ```
+
+Expose locally using port-forwarding:
+   ```bash
+    kubectl port-forward svc/smartlibrarian-backend 2050:2050
+    kubectl port-forward svc/smartlibrarian-frontend 2060:80
+   ```
+
+Then open: http://localhost:2060 (frontend) which will talk to http://localhost:2050 (backend).
+
+**Rancher Desktop Tip**
+
+If you’re using Rancher Desktop, you can configure port forwarding in the GUI instead of running `kubectl port-forward`.
+Under **Port Forwarding**, configure the local ports for the two containers (smartlibrarian-backend and smartlibrarian-frontend): 
+- map the **backend** service to local port **2050**.
+- map the **frontend** service to local port **2060**.
+
+Hint: Make sure that the `Include Kubernetes services` option at the top of the window is selected.
+
+Then, access the app at: http://localhost:2060
